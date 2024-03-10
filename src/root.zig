@@ -27,19 +27,22 @@ fn capital(ch: u8) bool {
 ///
 /// This function is camel-case aware.
 fn boundary(last_ch: u8, ch: u8) bool {
-    if (ch == null) {
-        return false;
-    }
-
-    if (!capital(last_ch) and capital(ch)) {
-        return true;
-    }
-
-    if (!word(last_ch) and word(ch)) {
-        return true;
-    }
-
+    if (ch == null) return false;
+    if (!capital(last_ch) and capital(ch)) return true;
+    if (!word(last_ch) and word(ch)) return true;
     return false;
+}
+
+/// Increment each element in VEC between BEG and END by INC.
+fn inc_vec(vec: std.ArrayListAligned(i32, null), inc: ?i32, beg: ?i32, end: ?i32) void {
+    const _inc: i32 = inc orelse 1;
+    var _beg: i32 = beg orelse 0;
+    const _end: i32 = end orelse @intCast(vec.items.len);
+
+    while (_beg < _end) {
+        vec.items[@intCast(_beg)] += _inc;
+        _beg += 1;
+    }
 }
 
 //--- Testing
@@ -50,4 +53,21 @@ test "test word" {
 
 test "test capital" {
     try testing.expect(capital('A'));
+}
+
+test "test inc_vec" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var it: std.ArrayListAligned(i32, null) = std.ArrayList(i32).init(allocator);
+    try it.append(1);
+    try it.append(2);
+    try it.append(3);
+    try it.append(4);
+    try it.append(5);
+
+    inc_vec(it, 2, 2, null);
+
+    try testing.expect(it.items[2] == 5);
 }
