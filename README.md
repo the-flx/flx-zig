@@ -4,6 +4,14 @@
 # flx-zig
 > Rewrite emacs-flx in Zig
 
+## 🔍 See Also
+
+- [flx][] - Original algorithm in Emacs Lisp
+- [flx-rs][] - Rewrite emacs-flx in Rust for dynamic modules
+- [FlxCs][] - Rewrite emacs-flx in C#
+- [flx-ts][] - Rewrite emacs-flx in TypeScript, with added support for JavaScript
+- [flx-c][] - Rewrite emacs-flx in C
+
 ## ⚜️ License
 
 `flx-zig` is distributed under the terms of the MIT license.
