@@ -1,6 +1,10 @@
 const std = @import("std");
 const testing = std.testing;
 
+const String = []const u8;
+const LInt = std.ArrayList(i32);
+const IntLInt = std.HashMap(i32, LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
+
 const word_separators = [_]u8{
     ' ',
     '-',
@@ -34,7 +38,7 @@ fn boundary(last_ch: u8, ch: u8) bool {
 }
 
 /// Increment each element in VEC between BEG and END by INC.
-fn inc_vec(vec: std.ArrayListAligned(i32, null), inc: ?i32, beg: ?i32, end: ?i32) void {
+fn inc_vec(vec: LInt, inc: ?i32, beg: ?i32, end: ?i32) void {
     const _inc: i32 = inc orelse 1;
     var _beg: i32 = beg orelse 0;
     const _end: i32 = end orelse @intCast(vec.items.len);
@@ -45,22 +49,49 @@ fn inc_vec(vec: std.ArrayListAligned(i32, null), inc: ?i32, beg: ?i32, end: ?i32
     }
 }
 
+/// Return hash-table for string where keys are characters.
+/// Value is a sorted list of indexes for character occurrences.
+fn get_hash_for_string(result: IntLInt, str: String) void {
+    result.clearAndFree();
+    const str_len: usize = str.len;
+    var index: i32 = str_len - 1;
+    var ch: u8 = undefined;
+    var down_ch: u8 = undefined;
+
+    while (0 <= index) {
+        ch = str[index];
+
+        if (capital(ch)) {
+            result.put(ch, index);
+
+            down_ch = std.ascii.toLower(ch);
+        } else {
+            down_ch = ch;
+        }
+
+        result.put(down_ch, index);
+
+        index -= 1;
+    }
+}
+
 //--- Testing
 
-test "test word" {
+test "word" {
     try testing.expect(word('a'));
 }
 
-test "test capital" {
+test "capital" {
     try testing.expect(capital('A'));
 }
 
-test "test inc_vec" {
+test "inc_vec" {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var it: std.ArrayListAligned(i32, null) = std.ArrayList(i32).init(allocator);
+    var it: LInt = std.ArrayList(i32).init(allocator);
+    defer it.deinit();
     try it.append(1);
     try it.append(2);
     try it.append(3);
@@ -70,4 +101,20 @@ test "test inc_vec" {
     inc_vec(it, 2, 2, null);
 
     try testing.expect(it.items[2] == 5);
+}
+
+test "get_hash_for_string" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var result: IntLInt = std.AutoHashMap(i32, LInt).init(allocator);
+    defer result.deinit();
+
+    var arr = LInt.init(allocator);
+    defer arr.deinit();
+
+    try result.put(0, arr);
+
+    try testing.expect(true);
 }
