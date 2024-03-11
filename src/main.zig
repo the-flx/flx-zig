@@ -1,6 +1,8 @@
 const std = @import("std");
 
+const String = []const u8;
 const LInt = std.ArrayList(i32);
+const LLInt = std.ArrayList(LInt);
 const IntLInt = std.HashMap(i32, LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
 
 fn test_hashmap() !void {
@@ -14,8 +16,8 @@ fn test_hashmap() !void {
     var arr: LInt = LInt.init(allocator);
     defer arr.deinit();
 
-    try my_hash_map.put(0, arr);
-    try my_hash_map.put(0, arr);
+    try my_hash_map.put(1, arr);
+    try my_hash_map.put(1, arr);
 
     std.debug.print("{?}", .{my_hash_map.get(0)});
 }
@@ -41,11 +43,33 @@ fn test_array() !void {
     std.debug.print("len: {d}\n", .{it.items.len});
 }
 
-pub fn main() !void {
-    //try test_array();
-    try test_hashmap();
+fn test_arrarr() !void {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    var inner = LInt().init(allocator);
+    defer inner.deinit();
+    std.debug.print("{?}", .{inner.get(0)});
 }
 
-test "test" {
-    // TODO: ..
+fn test_for_times() !void {
+    const len = 10;
+    for (0..len) |i| {
+        std.debug.print("{d}", .{i});
+    }
+}
+
+fn test_for_str() !void {
+    for ("abcd") |i| {
+        std.debug.print("{c}", .{i});
+    }
+}
+
+pub fn main() !void {
+    //try test_array();
+    //try test_hashmap();
+    //try test_arrarr();
+    //try test_for_times();
+    try test_for_str();
 }
