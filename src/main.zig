@@ -5,6 +5,29 @@ const LInt = std.ArrayList(i32);
 const LLInt = std.ArrayList(LInt);
 const IntLInt = std.HashMap(i32, LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
 
+fn test_array() !void {
+  var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    // TODO: ..
+    var it: LInt = std.ArrayList(i32).init(allocator);
+    std.debug.print("{}\n", .{@TypeOf(it)});
+    defer it.deinit();
+
+    try it.append(1);
+    try it.append(2);
+
+    it.items[1] = 99;
+
+    for (it.items) |item| {
+        std.debug.print("{d}\n", .{item});
+    }
+
+    std.debug.print("{d} {d}\n", .{it.items[0], it.items[1]});
+    std.debug.print("len: {d}\n", .{it.items.len});
+}
+
 fn test_hashmap() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -20,27 +43,6 @@ fn test_hashmap() !void {
     try my_hash_map.put(1, arr);
 
     std.debug.print("{?}", .{my_hash_map.get(0)});
-}
-
-fn test_array() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    // TODO: ..
-    var it: LInt = std.ArrayList(i32).init(allocator);
-    std.debug.print("{}\n", .{@TypeOf(it)});
-    defer it.deinit();
-
-    try it.append(1);
-    try it.append(2);
-
-    for (it.items) |item| {
-        std.debug.print("{d}\n", .{item});
-    }
-
-    std.debug.print("{d}\n", .{it.items[0]});
-    std.debug.print("len: {d}\n", .{it.items.len});
 }
 
 fn test_arrarr() !void {
@@ -67,9 +69,9 @@ fn test_for_str() !void {
 }
 
 pub fn main() !void {
-    //try test_array();
+    try test_array();
     //try test_hashmap();
     //try test_arrarr();
     //try test_for_times();
-    try test_for_str();
+    //try test_for_str();
 }

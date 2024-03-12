@@ -84,6 +84,7 @@ fn get_hash_for_string(result: IntLInt, str: String) void {
 }
 
 /// Generate the heatmap vector of string.
+///
 /// See documentation for logic.
 fn get_heatmap_str(allocator: std.mem.Allocator, scores: LInt, str: String, group_separator: ?u8) void {
     const str_len: usize = str.len;
@@ -96,14 +97,14 @@ fn get_heatmap_str(allocator: std.mem.Allocator, scores: LInt, str: String, grou
 
     const penalty_lead = @as(i32, '.');
 
-    var inner = LInt().init(allocator);
+    var inner = LInt().init(allocator); // FREED!
     inner.append(-1);
     inner.append(0);
-    var group_alist = LLInt().init(allocator);
+    var group_alist = LLInt().init(allocator); // FREED!
     group_alist.append(inner);
 
     // final char bonus
-    scores[str_last_index] += 1;
+    scores.items[str_last_index] += 1;
 
     // Establish baseline mapping
     var last_ch: ?u8 = null;
@@ -131,10 +132,10 @@ fn get_heatmap_str(allocator: std.mem.Allocator, scores: LInt, str: String, grou
         }
 
         if (group_separator != null and group_separator == ch) {
-            group_alist[0][1] = group_word_count;
+            group_alist.items[0].items[1] = group_word_count;
             group_word_count = 0;
 
-            const lst = LInt().init(allocator);
+            const lst = LInt().init(allocator); // FREED!
             try lst.append(index1);
             try lst.append(group_word_count);
             group_alist.insert(0, lst);
@@ -232,6 +233,26 @@ fn get_heatmap_str(allocator: std.mem.Allocator, scores: LInt, str: String, grou
         defer v.deinit();
     }
     defer group_alist.deinit();
+}
+
+/// Return sublist bigger than VAL from sorted SORTED-LIST.
+///
+/// If VAL is nil, return entire list.
+fn bigger_sublist(result: LInt, sorted_list: LInt, val: ?i32) void {
+    if (sorted_list == null)
+        return;
+
+    if (val != null) {
+        for (sorted_list) |sub| {
+            if (sub > val) {
+                result.append(sub);
+            }
+        }
+    } else {
+        for (sorted_list) |sub| {
+            result.append(sub);
+        }
+    }
 }
 
 /// Return best score matching QUERY against STR.
