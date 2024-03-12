@@ -64,27 +64,37 @@ fn incVec(vec: LInt, inc: ?i32, beg: ?i32, end: ?i32) void {
     }
 }
 
+/// Insert data.
+fn dictInsert(allocator: std.mem.Allocator, dict: *IntLInt, key: i32, val: i32) void {
+    if (!dict.contains(key)) {
+        dict.put(key, LInt.init(allocator));
+    }
+
+    var lst: LInt = dict.get(key);
+    lst.insert(0, val);
+}
+
 /// Return hash-table for string where keys are characters.
 /// Value is a sorted list of indexes for character occurrences.
-fn getHashForString(result: IntLInt, str: String) void {
+fn getHashForString(allocator: std.mem.Allocator, result: *IntLInt, str: String) void {
     result.clearRetainingCapacity();
     const str_len: usize = str.len;
-    var index: i32 = str_len - 1;
+    var index: i32 = @intCast(str_len - 1);
     var ch: u8 = undefined;
     var down_ch: u8 = undefined;
 
     while (0 <= index) {
-        ch = str[index];
+        ch = str[@intCast(index)];
 
         if (capital(ch)) {
-            result.put(ch, index);
+            dictInsert(allocator, result, ch, index);
 
             down_ch = std.ascii.toLower(ch);
         } else {
             down_ch = ch;
         }
 
-        result.put(down_ch, index);
+        dictInsert(allocator, result, down_ch, index);
 
         index -= 1;
     }
@@ -93,7 +103,7 @@ fn getHashForString(result: IntLInt, str: String) void {
 /// Generate the heatmap vector of string.
 ///
 /// See documentation for logic.
-fn getHeatmapStr(allocator: std.mem.Allocator, scores: LInt, str: String, group_separator: ?u8) void {
+fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group_separator: ?u8) void {
     const str_len: i32 = @intCast(str.len);
     const str_last_index: i32 = str_len - 1;
     scores.clearRetainingCapacity();
@@ -298,12 +308,12 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
     }
 
     var str_info = IntLInt.init(allocator);
-    str_info.clearRetainingCapacity();
-    getHashForString(str_info, str);
+    str_info.clearRetainingCapacity(); // Avoid `local variable is never mutated`
+    getHashForString(allocator, &str_info, str);
 
     var heatmap = LInt.init(allocator);
-    heatmap.clearRetainingCapacity();
-    getHeatmapStr(allocator, heatmap, str, null);
+    heatmap.clearRetainingCapacity(); // Avoid `local variable is never mutated`
+    getHeatmapStr(allocator, &heatmap, str, null);
 
     const query_len: i32 = @intCast(query.len);
     const full_match_boost: bool = (1 < query_len) and (query_len < 5);
