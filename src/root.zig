@@ -5,6 +5,8 @@ const String = []const u8;
 const LInt = std.ArrayList(i32);
 const LLInt = std.ArrayList(LInt);
 const IntLInt = std.HashMap(i32, LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
+const LResult = std.ArrayList(Result);
+const IntLResult = std.HashMap(i32, LResult, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
 
 /// Result container.
 pub const Result = struct {
@@ -24,6 +26,11 @@ const word_separators = [_]u8{
 };
 
 const default_score: i32 = -35;
+
+/// Return true if STR is empty or null.
+fn nullOrEmpty(str: ?String) bool {
+    return str == null or str.?.len == 0;
+}
 
 /// Check if CHAR is a word character.
 fn word(ch: u8) bool {
@@ -46,7 +53,7 @@ fn boundary(last_ch: u8, ch: u8) bool {
 }
 
 /// Increment each element in VEC between BEG and END by INC.
-fn inc_vec(vec: LInt, inc: ?i32, beg: ?i32, end: ?i32) void {
+fn incVec(vec: LInt, inc: ?i32, beg: ?i32, end: ?i32) void {
     const _inc: i32 = inc orelse 1;
     var _beg: i32 = beg orelse 0;
     const _end: i32 = end orelse @intCast(vec.items.len);
@@ -59,8 +66,8 @@ fn inc_vec(vec: LInt, inc: ?i32, beg: ?i32, end: ?i32) void {
 
 /// Return hash-table for string where keys are characters.
 /// Value is a sorted list of indexes for character occurrences.
-fn get_hash_for_string(result: IntLInt, str: String) void {
-    result.clearAndFree();
+fn getHashForString(result: IntLInt, str: String) void {
+    result.clearRetainingCapacity();
     const str_len: usize = str.len;
     var index: i32 = str_len - 1;
     var ch: u8 = undefined;
@@ -86,10 +93,10 @@ fn get_hash_for_string(result: IntLInt, str: String) void {
 /// Generate the heatmap vector of string.
 ///
 /// See documentation for logic.
-fn get_heatmap_str(allocator: std.mem.Allocator, scores: LInt, str: String, group_separator: ?u8) void {
-    const str_len: usize = str.len;
+fn getHeatmapStr(allocator: std.mem.Allocator, scores: LInt, str: String, group_separator: ?u8) void {
+    const str_len: i32 = @intCast(str.len);
     const str_last_index: i32 = str_len - 1;
-    scores.clearAndFree();
+    scores.clearRetainingCapacity();
 
     for (0..str_len) |_| {
         scores.append(default_score);
@@ -155,7 +162,7 @@ fn get_heatmap_str(allocator: std.mem.Allocator, scores: LInt, str: String, grou
 
     // ++++ slash group-count penalty
     if (separator_count != 0) {
-        inc_vec(scores, group_count * -2, null, null);
+        incVec(scores, group_count * -2, null, null);
     }
 
     const index2: i32 = separator_count;
@@ -195,7 +202,7 @@ fn get_heatmap_str(allocator: std.mem.Allocator, scores: LInt, str: String, grou
             }
         }
 
-        inc_vec(scores, num, group_start + 1, last_group_limit);
+        incVec(scores, num, group_start + 1, last_group_limit);
 
         var cddr_group = LInt().init(allocator); // clone it
         cddr_group.orderedRemove(0);
@@ -238,7 +245,7 @@ fn get_heatmap_str(allocator: std.mem.Allocator, scores: LInt, str: String, grou
 /// Return sublist bigger than VAL from sorted SORTED-LIST.
 ///
 /// If VAL is nil, return entire list.
-fn bigger_sublist(result: LInt, sorted_list: LInt, val: ?i32) void {
+fn biggerSublist(result: LInt, sorted_list: LInt, val: ?i32) void {
     if (sorted_list == null)
         return;
 
@@ -255,15 +262,67 @@ fn bigger_sublist(result: LInt, sorted_list: LInt, val: ?i32) void {
     }
 }
 
-/// Return best score matching QUERY against STR.
-pub fn score(str: String, query: String) Result {
-    // TODO: Should we let the user choose the allocator?
-    // See https://ziglang.org/documentation/0.5.0/#Choosing-an-Allocator
-    var arena = std.heap.ArenaAllocator.init(std.heap.direct_allocator);
-    defer arena.deinit();
-    const allocator = &arena.allocator;
+/// Recursively compute the best match for a string, passed as STR-INFO and
+/// HEATMAP, according to QUERY.
+fn findBestMatch(imatch: LResult, str_info: IntLInt, heatmap: LInt, greater_than: ?i32, query: String, query_len: i32, q_index: i32, match_cache: IntLResult) void {
+    const greater_num: i32 = greater_than orelse 0;
+    const hash_key: i32 = q_index + (greater_num * query_len);
+    const hash_value: LResult = match_cache.get(hash_key);
 
-    .{ allocator, str, query };
+    if (hash_value == null) {
+        imatch.clearRetainingCapacity();
+        for (hash_value) |val| {
+            imatch.append(val);
+        }
+    } else {
+        //
+    }
+
+    .{ imatch, str_info, heatmap, greater_than, query, query_len, q_index, match_cache };
+}
+
+/// Return best score matching QUERY against STR.
+pub fn score(str: String, query: String) ?Result {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    return scoreAlloc(allocator, str, query);
+}
+
+/// Return best score matching QUERY against STR.
+///
+/// List function `score` but accept custom allocator.
+pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Result {
+    if (nullOrEmpty(str) or nullOrEmpty(query)) {
+        return null;
+    }
+
+    var str_info = IntLInt.init(allocator);
+    str_info.clearRetainingCapacity();
+    getHashForString(str_info, str);
+
+    var heatmap = LInt.init(allocator);
+    heatmap.clearRetainingCapacity();
+    getHeatmapStr(allocator, heatmap, str, null);
+
+    const query_len: i32 = @intCast(query.len);
+    const full_match_boost: bool = (1 < query_len) and (query_len < 5);
+    const match_cache = IntLResult.init(allocator);
+    const optimal_match = LResult.init(allocator);
+    findBestMatch(optimal_match, str_info, heatmap, null, query, query_len, 0, match_cache);
+
+    if (optimal_match.items.len == 0) {
+        return null;
+    }
+
+    var result: Result = optimal_match.items[0];
+    const caar: i32 = @intCast(result.indices.items.len);
+
+    if (full_match_boost and caar == str.len) {
+        result.score += 10000;
+    }
+
+    return result;
 }
 
 //--- Testing
@@ -276,7 +335,7 @@ test "capital" {
     try testing.expect(capital('A'));
 }
 
-test "inc_vec" {
+test "incVec" {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
@@ -289,12 +348,12 @@ test "inc_vec" {
     try it.append(4);
     try it.append(5);
 
-    inc_vec(it, 2, 2, null);
+    incVec(it, 2, 2, null);
 
     try testing.expect(it.items[2] == 5);
 }
 
-test "get_hash_for_string" {
+test "getHashForString" {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
@@ -307,7 +366,7 @@ test "get_hash_for_string" {
 
     try result.put(0, arr);
 
-    //get_hash_for_string(result, "");
+    //getHashForString(result, "");
 
     try testing.expect(true);
 }
