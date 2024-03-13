@@ -1,12 +1,12 @@
 const std = @import("std");
 const testing = std.testing;
 
-const String = []const u8;
-const LInt = std.ArrayList(i32);
-const LLInt = std.ArrayList(LInt);
-const IntLInt = std.HashMap(i32, LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
-const LResult = std.ArrayList(Result);
-const IntLResult = std.HashMap(i32, LResult, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
+pub const String = []const u8;
+pub const LInt = std.ArrayList(i32);
+pub const LLInt = std.ArrayList(LInt);
+pub const IntLInt = std.HashMap(i32, LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
+pub const LResult = std.ArrayList(Result);
+pub const IntLResult = std.HashMap(i32, LResult, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
 
 /// Result container.
 pub const Result = struct {
@@ -41,27 +41,28 @@ fn nullOrEmpty(str: ?String) bool {
 }
 
 /// Check if CHAR is a word character.
-fn word(ch: u8) bool {
+fn word(ch: ?u8) bool {
+    if (ch == null) return false;
     return !std.mem.containsAtLeast(u8, &word_separators, 1, &[_]u8{ch});
 }
 
 /// Check if CHAR is an uppercase character.
-fn capital(ch: u8) bool {
+fn capital(ch: ?u8) bool {
     return word(ch) and std.ascii.isUpper(ch);
 }
 
 /// Check if LAST-CHAR is the end of a word and CHAR the start of the next.
 ///
 /// This function is camel-case aware.
-fn boundary(last_ch: u8, ch: u8) bool {
-    if (ch == null) return false;
+fn boundary(last_ch: ?u8, ch: u8) bool {
+    if (last_ch == null) return true;
     if (!capital(last_ch) and capital(ch)) return true;
     if (!word(last_ch) and word(ch)) return true;
     return false;
 }
 
 /// Increment each element in VEC between BEG and END by INC.
-fn incVec(vec: LInt, inc: ?i32, beg: ?i32, end: ?i32) void {
+fn incVec(vec: *LInt, inc: ?i32, beg: ?i32, end: ?i32) void {
     const _inc: i32 = inc orelse 1;
     var _beg: i32 = beg orelse 0;
     const _end: i32 = end orelse @intCast(vec.items.len);
@@ -111,22 +112,22 @@ fn getHashForString(allocator: std.mem.Allocator, result: *IntLInt, str: String)
 /// Generate the heatmap vector of string.
 ///
 /// See documentation for logic.
-fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group_separator: ?u8) void {
-    const str_len: i32 = @intCast(str.len);
-    const str_last_index: i32 = str_len - 1;
+fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group_separator: ?u8) !void {
+    const str_len: usize = str.len;
+    const str_last_index: usize = str_len - 1;
     scores.clearRetainingCapacity();
 
     for (0..str_len) |_| {
-        scores.append(default_score);
+        try scores.append(default_score);
     }
 
-    const penalty_lead = @as(i32, '.');
+    const penalty_lead: ?u8 = '.';
 
     var inner = LInt.init(allocator); // FREED!
-    inner.append(-1);
-    inner.append(0);
+    try inner.append(-1);
+    try inner.append(0);
     var group_alist = LLInt.init(allocator); // FREED!
-    group_alist.append(inner);
+    try group_alist.append(inner);
 
     // final char bonus
     scores.items[str_last_index] += 1;
@@ -144,7 +145,7 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
         if (group_word_count != 0) effective_last_char = last_ch;
 
         if (boundary(effective_last_char, ch)) {
-            group_alist.get(0).insert(2, index1);
+            try group_alist.items[0].insert(2, index1);
         }
 
         if (!word(last_ch) and word(ch)) {
@@ -153,17 +154,17 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
 
         // ++++ -45 penalize extension
         if (last_ch != null and last_ch == penalty_lead) {
-            scores[index1] += -45;
+            scores.items[@intCast(index1)] += -45;
         }
 
         if (group_separator != null and group_separator == ch) {
             group_alist.items[0].items[1] = group_word_count;
             group_word_count = 0;
 
-            const lst = LInt.init(allocator); // FREED!
+            var lst = LInt.init(allocator); // FREED!
             try lst.append(index1);
             try lst.append(group_word_count);
-            group_alist.insert(0, lst);
+            try group_alist.insert(0, lst);
         }
 
         if (index1 == str_last_index) {
@@ -175,7 +176,7 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
         index1 += 1;
     }
 
-    const group_count: i32 = group_alist.len;
+    const group_count: i32 = @intCast(group_alist.items.len);
     const separator_count: i32 = group_count - 1;
 
     // ++++ slash group-count penalty
@@ -188,11 +189,11 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
     var basepath_found: bool = false;
 
     // score each group further
-    for (group_alist) |group| {
+    for (group_alist.items) |group| {
         const group_start: i32 = group.items[0];
         const word_count: i32 = group.items[1];
         // this is the number of effective word groups
-        const words_len: i32 = group.len - 2;
+        const words_len: i32 = @intCast(group.items.len - 2);
         var basepath_p: bool = false;
 
         if (words_len != 0 and !basepath_found) {
@@ -203,7 +204,7 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
         var num: i32 = undefined;
         if (basepath_p) {
             // ++++ basepath separator-count boosts
-            const boosts: i32 = 0;
+            var boosts: i32 = 0;
             if (separator_count > 1) {
                 boosts = separator_count - 1;
             }
@@ -222,14 +223,14 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
 
         incVec(scores, num, group_start + 1, last_group_limit);
 
-        var cddr_group = group.clone(); // clone it
-        cddr_group.orderedRemove(0);
-        cddr_group.orderedRemove(0);
+        const cddr_group = group.clone(); // clone it
+        //cddr_group.orderedRemove(0);
+        //cddr_group.orderedRemove(0);
 
-        const word_index: i32 = words_len - 1;
-        var last_word: ?i32 = last_group_limit orelse str_len;
+        var word_index: i32 = @intCast(words_len - 1);
+        var last_word: ?i32 = last_group_limit orelse @intCast(str_len);
 
-        for (cddr_group) |w| {
+        for (cddr_group.items) |w| {
             // ++++  beg word bonus AND
             scores.items[word] += 85;
 
@@ -313,8 +314,44 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: LResult, str_info: IntLIn
             }
         } else {
             for (indexes) |index| {
-                //
                 const elem_group = LResult.init(allocator);
+
+                var dic = IntLInt.init(allocator);
+                dic.clearRetainingCapacity();
+                var lst = LInt.init(allocator);
+                lst.clearRetainingCapacity();
+                findBestMatch(allocator, elem_group, dic, lst, index, query, query_len, q_index + 1, match_cache);
+
+                for (elem_group) |elem| {
+                    const caar: i32 = elem.indices.items[0];
+                    const cadr: i32 = elem.score;
+                    const cddr: i32 = elem.tail;
+
+                    if ((caar - 1) == index) {
+                        temp_score = cadr + heatmap[index] +
+                            (std.math.Min(cddr, 3) * 15) + // boost contiguous matches
+                            60;
+                    } else {
+                        temp_score = cadr + heatmap[index];
+                    }
+
+                    // We only care about the optimal match, so only forward the match
+                    // with the best score to parent
+                    if (temp_score > best_score) {
+                        best_score = temp_score;
+
+                        imatch.clearRetainingCapacity();
+                        const indices = elem.indices.clone();
+                        indices.insert(0, index);
+
+                        const tail: i32 = 0;
+                        if ((caar - 1) == index) {
+                            tail = cddr + 1;
+                        }
+
+                        //imatch.Add(new Result(indices, temp_score, tail));
+                    }
+                }
             }
         }
     }
@@ -344,13 +381,13 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
 
     var heatmap = LInt.init(allocator);
     heatmap.clearRetainingCapacity(); // Avoid `local variable is never mutated`
-    getHeatmapStr(allocator, &heatmap, str, null);
+    try getHeatmapStr(allocator, &heatmap, str, null);
 
     const query_len: i32 = @intCast(query.len);
     const full_match_boost: bool = (1 < query_len) and (query_len < 5);
     const match_cache = IntLResult.init(allocator);
     const optimal_match = LResult.init(allocator);
-    findBestMatch(optimal_match, str_info, heatmap, null, query, query_len, 0, match_cache);
+    findBestMatch(allocator, optimal_match, str_info, heatmap, null, query, query_len, 0, match_cache);
 
     if (optimal_match.items.len == 0) {
         return null;
