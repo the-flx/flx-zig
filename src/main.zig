@@ -74,9 +74,15 @@ fn testClone(allocator: std.mem.Allocator) !void {
     try group_alist.append(inner);
 
     for (group_alist.items) |group| {
-        const cddr_group = group.clone(); // clone it
-        cddr_group.?.orderedRemove();
-        std.debug.print("{!}", .{cddr_group});
+        var cddr_group = group.clone() catch null;
+
+        std.debug.print("{any}", .{cddr_group});
+
+        const val: usize = 0;
+        _ = cddr_group.?.orderedRemove(val);
+
+        //cddr_group.?.orderedRemove();
+        //std.debug.print("{!}", .{cddr_group});
     }
 }
 
@@ -88,16 +94,16 @@ fn testScore() !void {
 }
 
 pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
+    //var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    //defer arena.deinit();
+    //const allocator = arena.allocator();
 
     //try testArray();
     //try testHashmap();
     //try testArrArr();
     //try testForTimes();
     //try testForStr();
-    try testClone(allocator);
-    //try testScore();
+    //try testClone(allocator);
+    try testScore();
 
 }
