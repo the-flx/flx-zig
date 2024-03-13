@@ -13,6 +13,14 @@ pub const Result = struct {
     score: i32,
     indices: LInt,
     tail: i32,
+
+    pub fn init(mscore: i32, indices: LInt, tail: i32) Result {
+        return .{
+            .score = mscore,
+            .indices = indices,
+            .tail = tail,
+        };
+    }
 };
 
 const word_separators = [_]u8{
@@ -114,10 +122,10 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
 
     const penalty_lead = @as(i32, '.');
 
-    var inner = LInt().init(allocator); // FREED!
+    var inner = LInt.init(allocator); // FREED!
     inner.append(-1);
     inner.append(0);
-    var group_alist = LLInt().init(allocator); // FREED!
+    var group_alist = LLInt.init(allocator); // FREED!
     group_alist.append(inner);
 
     // final char bonus
@@ -152,7 +160,7 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
             group_alist.items[0].items[1] = group_word_count;
             group_word_count = 0;
 
-            const lst = LInt().init(allocator); // FREED!
+            const lst = LInt.init(allocator); // FREED!
             try lst.append(index1);
             try lst.append(group_word_count);
             group_alist.insert(0, lst);
@@ -214,7 +222,7 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
 
         incVec(scores, num, group_start + 1, last_group_limit);
 
-        var cddr_group = LInt().init(allocator); // clone it
+        var cddr_group = group.clone(); // clone it
         cddr_group.orderedRemove(0);
         cddr_group.orderedRemove(0);
 
@@ -274,7 +282,7 @@ fn biggerSublist(result: LInt, sorted_list: LInt, val: ?i32) void {
 
 /// Recursively compute the best match for a string, passed as STR-INFO and
 /// HEATMAP, according to QUERY.
-fn findBestMatch(imatch: LResult, str_info: IntLInt, heatmap: LInt, greater_than: ?i32, query: String, query_len: i32, q_index: i32, match_cache: IntLResult) void {
+fn findBestMatch(allocator: std.mem.Allocator, imatch: LResult, str_info: IntLInt, heatmap: LInt, greater_than: ?i32, query: String, query_len: i32, q_index: i32, match_cache: IntLResult) void {
     const greater_num: i32 = greater_than orelse 0;
     const hash_key: i32 = q_index + (greater_num * query_len);
     const hash_value: LResult = match_cache.get(hash_key);
@@ -285,7 +293,30 @@ fn findBestMatch(imatch: LResult, str_info: IntLInt, heatmap: LInt, greater_than
             imatch.append(val);
         }
     } else {
-        //
+        const uchar: i32 = query.items[q_index];
+        const sorted_list: LInt = str_info.get(uchar);
+        var indexes = LInt.init(allocator);
+        indexes.clearRetainingCapacity();
+        biggerSublist(indexes, sorted_list, greater_than);
+        var temp_score: i32 = undefined;
+        var best_score: i32 = std.math.minInt(i32);
+
+        if (q_index >= query_len - 1) {
+            // At the tail end of the recursion, simply generate all possible
+            // matches with their scores and return the list to parent.
+            for (indexes) |index| {
+                var indices = LInt.init(allocator);
+                indices.append(index);
+                indices.append();
+
+                imatch.append(Result.init(indices, heatmap.items[index], 0));
+            }
+        } else {
+            for (indexes) |index| {
+                //
+                const elem_group = LResult.init(allocator);
+            }
+        }
     }
 
     .{ imatch, str_info, heatmap, greater_than, query, query_len, q_index, match_cache };
