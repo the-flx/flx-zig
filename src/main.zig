@@ -137,8 +137,8 @@ fn testScore() !void {
 }
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+    //var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    //const allocator = gpa.allocator();
 
     //try testArray();
     //try testHashmap();
@@ -146,7 +146,7 @@ pub fn main() !void {
     //try testForTimes();
     //try testForStr();
     //try testClone(allocator);
-    try testNested(allocator);
+    //try testNested(allocator);
     //try testCreate(allocator);
-    //try testScore();
+    try testScore();
 }

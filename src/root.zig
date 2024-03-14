@@ -93,14 +93,6 @@ fn getHashForString(allocator: std.mem.Allocator, result: *IntLInt, str: String)
 
         index -= 1;
     }
-
-    // var it = result.keyIterator();
-    // while (it.next()) |some| {
-    //     std.debug.print("{any} {any}\n", .{ some.*, result.get(some.*) });
-    // }
-
-    std.debug.print("{any}\n", .{result.capacity()});
-    std.debug.print("----\n", .{});
 }
 
 /// Generate the heatmap vector of string.
@@ -351,6 +343,15 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
     }
 }
 
+/// Free internal variables.
+fn freeInternal(str_info: *IntLInt) !void {
+    var it = str_info.keyIterator();
+    while (it.next()) |k| {
+        str_info.get(k.*).?.deinit();
+    }
+    str_info.deinit();
+}
+
 /// Return best score matching QUERY against STR.
 ///
 /// List function `score` but accept custom allocator.
@@ -361,16 +362,9 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
 
     var str_info = IntLInt.init(allocator);
     if (getHashForString(allocator, &str_info, str)) {
-        var it = str_info.keyIterator();
-        while (it.next()) |k| {
-            std.debug.print("{}: {?}\n", .{ k.*, str_info.get(k.*).?.items.len });
-            for (str_info.get(k.*).?.items) |item| {
-                std.debug.print("  {any}\n", .{item});
-            }
-        }
-        return null;
         // empty..
     } else |_| {
+        try freeInternal(&str_info);
         return null;
     }
 
