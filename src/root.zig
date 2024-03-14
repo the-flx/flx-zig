@@ -238,13 +238,15 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
 
         last_group_limit = group_start + 1;
         index2 -= 1;
+
+        cddr_group.?.deinit();
     }
 
     // Free stuff
     for (group_alist.items) |v| {
-        defer v.deinit();
+        v.deinit();
     }
-    defer group_alist.deinit();
+    group_alist.deinit();
 }
 
 /// Return sublist bigger than VAL from sorted SORTED-LIST.
@@ -344,12 +346,18 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
 }
 
 /// Free internal variables.
-fn freeInternal(str_info: *IntLInt) !void {
-    var it = str_info.keyIterator();
-    while (it.next()) |k| {
-        str_info.get(k.*).?.deinit();
+fn freeInternal(str_info: ?*IntLInt, heatmap: ?*LInt) !void {
+    if (str_info != null) {
+        var it = str_info.?.keyIterator();
+        while (it.next()) |k| {
+            str_info.?.get(k.*).?.deinit();
+        }
+        str_info.?.deinit();
     }
-    str_info.deinit();
+
+    if (heatmap != null) {
+        heatmap.?.deinit();
+    }
 }
 
 /// Return best score matching QUERY against STR.
@@ -364,14 +372,17 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
     if (getHashForString(allocator, &str_info, str)) {
         // empty..
     } else |_| {
-        try freeInternal(&str_info);
+        try freeInternal(&str_info, null);
         return null;
     }
 
     var heatmap = LInt.init(allocator);
     if (getHeatmapStr(allocator, &heatmap, str, null)) {
         // empty..
+        try freeInternal(&str_info, &heatmap);
+        return null;
     } else |_| {
+        try freeInternal(&str_info, &heatmap);
         return null;
     }
 
