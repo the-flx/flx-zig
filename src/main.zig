@@ -1,5 +1,6 @@
 const std = @import("std");
 const flx = @import("root.zig");
+const util = @import("util.zig");
 
 fn testArray() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -86,6 +87,39 @@ fn testClone(allocator: std.mem.Allocator) !void {
     }
 }
 
+fn testNested(allocator: std.mem.Allocator) !void {
+    var str_info = flx.IntLInt.init(allocator);
+    try util.dictInsert(allocator, &str_info, 0, 10);
+    try util.dictInsert(allocator, &str_info, 0, 99);
+    try util.dictInsert(allocator, &str_info, 1, 7);
+    try util.dictInsert(allocator, &str_info, 1, 55);
+    try util.dictInsert(allocator, &str_info, 1, 4);
+    try util.dictInsert(allocator, &str_info, 0, 99);
+
+    //std.debug.print("{any}\n", .{str_info.getPtr(0).?.*.*});
+    //std.debug.print("{?}\n", .{str_info.count()});
+    //std.debug.print("{?}\n", .{str_info.getPtr(0).?.*.*.items.len});
+    //std.debug.print("{?}\n", .{str_info.getPtr(1).?.*.*.items.len});
+
+    for (0..2) |i| {
+        const arr = str_info.getPtr(@intCast(i)).?.*.*;
+        const len: usize = arr.items.len;
+        std.debug.print("----- {?}: {?}\n", .{ i, len });
+        std.debug.print("  ", .{});
+
+        for (arr.items) |j| {
+            std.debug.print("{?} ", .{ j });
+        }
+        std.debug.print("\n", .{});
+    }
+}
+
+fn testCreate(allocator: std.mem.Allocator) !void {
+    const lst = try allocator.create(flx.LInt);
+    defer allocator.destroy(lst);
+    std.debug.print("{any}\n", .{lst});
+}
+
 fn testScore() !void {
     const result: ?flx.Result = flx.score("switch-to-buffer", "stb");
     if (result != null) {
@@ -94,9 +128,8 @@ fn testScore() !void {
 }
 
 pub fn main() !void {
-    //var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    //defer arena.deinit();
-    //const allocator = arena.allocator();
+    //var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    //const allocator = gpa.allocator();
 
     //try testArray();
     //try testHashmap();
@@ -104,6 +137,7 @@ pub fn main() !void {
     //try testForTimes();
     //try testForStr();
     //try testClone(allocator);
+    //try testNested(allocator);
+    //try testCreate(allocator);
     try testScore();
-
 }

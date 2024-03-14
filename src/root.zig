@@ -1,10 +1,11 @@
 const std = @import("std");
+const util = @import("util.zig");
 const testing = std.testing;
 
 pub const String = []const u8;
 pub const LInt = std.ArrayList(i32);
 pub const LLInt = std.ArrayList(LInt);
-pub const IntLInt = std.HashMap(i32, LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
+pub const IntLInt = std.HashMap(i32, *LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
 pub const LResult = std.ArrayList(Result);
 pub const IntLResult = std.HashMap(i32, LResult, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
 
@@ -34,11 +35,6 @@ const word_separators = [_]?u8{
 };
 
 const default_score: i32 = -35;
-
-/// Return true if STR is empty or null.
-fn nullOrEmpty(str: ?String) bool {
-    return str == null or str.?.len == 0;
-}
 
 /// Check if CHAR is a word character.
 fn word(ch: ?u8) bool {
@@ -73,16 +69,6 @@ fn incVec(vec: *LInt, inc: ?i32, beg: ?i32, end: ?i32) void {
     }
 }
 
-/// Insert data.
-fn dictInsert(allocator: std.mem.Allocator, dict: *IntLInt, key: i32, val: i32) !void {
-    if (!dict.contains(key)) {
-        try dict.put(key, LInt.init(allocator));
-    }
-
-    var lst: ?LInt = dict.get(key);
-    try lst.?.insert(0, val);
-}
-
 /// Return hash-table for string where keys are characters.
 /// Value is a sorted list of indexes for character occurrences.
 fn getHashForString(allocator: std.mem.Allocator, result: *IntLInt, str: String) !void {
@@ -96,17 +82,25 @@ fn getHashForString(allocator: std.mem.Allocator, result: *IntLInt, str: String)
         ch = str[@intCast(index)];
 
         if (capital(ch)) {
-            try dictInsert(allocator, result, ch, index);
+            try util.dictInsert(allocator, result, ch, index);
 
             down_ch = std.ascii.toLower(ch);
         } else {
             down_ch = ch;
         }
 
-        try dictInsert(allocator, result, down_ch, index);
+        try util.dictInsert(allocator, result, down_ch, index);
 
         index -= 1;
     }
+
+    // var it = result.keyIterator();
+    // while (it.next()) |some| {
+    //     std.debug.print("{any} {any}\n", .{ some.*, result.get(some.*) });
+    // }
+
+    std.debug.print("{any}\n", .{result.capacity()});
+    std.debug.print("----\n", .{});
 }
 
 /// Generate the heatmap vector of string.
@@ -345,35 +339,36 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
                             tail = cddr + 1;
                         }
 
-                        //imatch.Add(new Result(indices, temp_score, tail));
+                        imatch.append(Result.init(indices, temp_score, tail));
                     }
                 }
             }
         }
 
         // Calls are cached to avoid exponential time complexity
-        //Util.DictSet(matchCache, hashKey, new List<Result>(imatch));
+        var imatch_cloned: ?LResult = imatch.clone() catch null;
+        match_cache.put(hash_key, &imatch_cloned);
     }
-}
-
-/// Return best score matching QUERY against STR.
-pub fn score(str: String, query: String) ?Result {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-    return scoreAlloc(allocator, str, query);
 }
 
 /// Return best score matching QUERY against STR.
 ///
 /// List function `score` but accept custom allocator.
 pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Result {
-    if (nullOrEmpty(str) or nullOrEmpty(query)) {
+    if (util.nullOrEmpty(str) or util.nullOrEmpty(query)) {
         return null;
     }
 
     var str_info = IntLInt.init(allocator);
     if (getHashForString(allocator, &str_info, str)) {
+        var it = str_info.keyIterator();
+        while (it.next()) |k| {
+            std.debug.print("{}: {?}\n", .{ k.*, str_info.get(k.*).?.items.len });
+            for (str_info.get(k.*).?.items) |item| {
+                std.debug.print("  {any}\n", .{item});
+            }
+        }
+        return null;
         // empty..
     } else |_| {
         return null;
@@ -408,6 +403,20 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
     }
 
     return result;
+}
+
+/// Return best score matching QUERY against STR.
+pub fn score(str: String, query: String) ?Result {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer {
+        const deinit_status = gpa.deinit();
+        //fail test; can't try in defer as defer is executed after we return
+        if (deinit_status == .leak) {
+            testing.expect(false) catch @panic("TEST FAIL");
+        }
+    }
+    return scoreAlloc(allocator, str, query);
 }
 
 //--- Testing
