@@ -5,7 +5,7 @@ const testing = std.testing;
 pub const String = []const u8;
 pub const LInt = std.ArrayList(i32);
 pub const LLInt = std.ArrayList(LInt);
-pub const IntLInt = std.HashMap(i32, *LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
+pub const IntLInt = std.HashMap(i32, LInt, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
 pub const LResult = std.ArrayList(Result);
 pub const IntLResult = std.HashMap(i32, LResult, std.hash_map.AutoContext(i32), std.hash_map.default_max_load_percentage);
 
