@@ -14,7 +14,7 @@ pub const Result = struct {
     indices: LInt,
     tail: i32,
 
-    pub fn init(mscore: i32, indices: LInt, tail: i32) Result {
+    pub fn init(indices: LInt, mscore: i32, tail: i32) Result {
         return .{
             .score = mscore,
             .indices = indices,
@@ -48,7 +48,7 @@ fn word(ch: ?u8) bool {
 
 /// Check if CHAR is an uppercase character.
 fn capital(ch: ?u8) bool {
-    return word(ch) and std.ascii.isUpper(ch);
+    return word(ch) and std.ascii.isUpper(ch.?);
 }
 
 /// Check if LAST-CHAR is the end of a word and CHAR the start of the next.
@@ -74,18 +74,18 @@ fn incVec(vec: *LInt, inc: ?i32, beg: ?i32, end: ?i32) void {
 }
 
 /// Insert data.
-fn dictInsert(allocator: std.mem.Allocator, dict: *IntLInt, key: i32, val: i32) void {
+fn dictInsert(allocator: std.mem.Allocator, dict: *IntLInt, key: i32, val: i32) !void {
     if (!dict.contains(key)) {
-        dict.put(key, LInt.init(allocator));
+        try dict.put(key, LInt.init(allocator));
     }
 
-    var lst: LInt = dict.get(key);
-    lst.insert(0, val);
+    var lst: ?LInt = dict.get(key);
+    try lst.?.insert(0, val);
 }
 
 /// Return hash-table for string where keys are characters.
 /// Value is a sorted list of indexes for character occurrences.
-fn getHashForString(allocator: std.mem.Allocator, result: *IntLInt, str: String) void {
+fn getHashForString(allocator: std.mem.Allocator, result: *IntLInt, str: String) !void {
     result.clearRetainingCapacity();
     const str_len: usize = str.len;
     var index: i32 = @intCast(str_len - 1);
@@ -96,14 +96,14 @@ fn getHashForString(allocator: std.mem.Allocator, result: *IntLInt, str: String)
         ch = str[@intCast(index)];
 
         if (capital(ch)) {
-            dictInsert(allocator, result, ch, index);
+            try dictInsert(allocator, result, ch, index);
 
             down_ch = std.ascii.toLower(ch);
         } else {
             down_ch = ch;
         }
 
-        dictInsert(allocator, result, down_ch, index);
+        try dictInsert(allocator, result, down_ch, index);
 
         index -= 1;
     }
@@ -264,26 +264,26 @@ fn getHeatmapStr(allocator: std.mem.Allocator, scores: *LInt, str: String, group
 /// Return sublist bigger than VAL from sorted SORTED-LIST.
 ///
 /// If VAL is nil, return entire list.
-fn biggerSublist(result: *LInt, sorted_list: LInt, val: ?i32) void {
+fn biggerSublist(result: *LInt, sorted_list: ?LInt, val: ?i32) !void {
     if (sorted_list == null)
         return;
 
     if (val != null) {
-        for (sorted_list) |sub| {
-            if (sub > val) {
-                result.append(sub);
+        for (sorted_list.?.items) |sub| {
+            if (sub > val.?) {
+                try result.append(sub);
             }
         }
     } else {
-        for (sorted_list) |sub| {
-            result.append(sub);
+        for (sorted_list.?.items) |sub| {
+            try result.append(sub);
         }
     }
 }
 
 /// Recursively compute the best match for a string, passed as STR-INFO and
 /// HEATMAP, according to QUERY.
-fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntLInt, heatmap: LInt, greater_than: ?i32, query: String, query_len: i32, q_index: i32, match_cache: *IntLResult) void {
+fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntLInt, heatmap: *LInt, greater_than: ?i32, query: String, query_len: i32, q_index: i32, match_cache: *IntLResult) !void {
     const greater_num: i32 = greater_than orelse 0;
     const hash_key: i32 = q_index + (greater_num * query_len);
     const hash_value: ?LResult = match_cache.get(hash_key);
@@ -291,47 +291,44 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
     if (hash_value == null) {
         imatch.clearRetainingCapacity();
         for (hash_value.?.items) |val| {
-            imatch.append(val);
+            try imatch.append(val);
         }
     } else {
-        const uchar: i32 = query.items[q_index];
-        const sorted_list: LInt = str_info.get(uchar);
+        const uchar: i32 = query[@intCast(q_index)];
+        const sorted_list: ?LInt = str_info.get(uchar);
         var indexes = LInt.init(allocator);
-        biggerSublist(&indexes, sorted_list, greater_than);
+        try biggerSublist(&indexes, sorted_list, greater_than);
         var temp_score: i32 = undefined;
         var best_score: i32 = std.math.minInt(i32);
 
         if (q_index >= query_len - 1) {
             // At the tail end of the recursion, simply generate all possible
             // matches with their scores and return the list to parent.
-            for (indexes) |index| {
+            for (indexes.items) |index| {
                 var indices = LInt.init(allocator);
-                indices.append(index);
-                indices.append();
+                try indices.append(index);
 
-                imatch.append(Result.init(indices, heatmap.items[index], 0));
+                try imatch.append(Result.init(indices, heatmap.items[@intCast(index)], 0));
             }
         } else {
-            for (indexes) |index| {
-                const elem_group = LResult.init(allocator);
+            for (indexes.items) |index| {
+                var elem_group = LResult.init(allocator);
 
                 var dic = IntLInt.init(allocator);
-                dic.clearRetainingCapacity();
                 var lst = LInt.init(allocator);
-                lst.clearRetainingCapacity();
-                findBestMatch(allocator, elem_group, dic, lst, index, query, query_len, q_index + 1, match_cache);
+                try findBestMatch(allocator, &elem_group, &dic, &lst, index, query, query_len, q_index + 1, match_cache);
 
-                for (elem_group) |elem| {
+                for (elem_group.items) |elem| {
                     const caar: i32 = elem.indices.items[0];
                     const cadr: i32 = elem.score;
                     const cddr: i32 = elem.tail;
 
                     if ((caar - 1) == index) {
-                        temp_score = cadr + heatmap[index] +
-                            (std.math.Min(cddr, 3) * 15) + // boost contiguous matches
+                        temp_score = cadr + heatmap.items[@intCast(index)] +
+                            (@min(cddr, 3) * 15) + // boost contiguous matches
                             60;
                     } else {
-                        temp_score = cadr + heatmap[index];
+                        temp_score = cadr + heatmap.items[@intCast(index)];
                     }
 
                     // We only care about the optimal match, so only forward the match
@@ -340,10 +337,10 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
                         best_score = temp_score;
 
                         imatch.clearRetainingCapacity();
-                        const indices = elem.indices.clone();
-                        indices.insert(0, index);
+                        var indices = elem.indices.clone() catch null;
+                        try indices.?.insert(0, index);
 
-                        const tail: i32 = 0;
+                        var tail: i32 = 0;
                         if ((caar - 1) == index) {
                             tail = cddr + 1;
                         }
@@ -353,9 +350,10 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
                 }
             }
         }
-    }
 
-    .{ imatch, str_info, heatmap, greater_than, query, query_len, q_index, match_cache };
+        // Calls are cached to avoid exponential time complexity
+        //Util.DictSet(matchCache, hashKey, new List<Result>(imatch));
+    }
 }
 
 /// Return best score matching QUERY against STR.
@@ -375,14 +373,16 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
     }
 
     var str_info = IntLInt.init(allocator);
-    str_info.clearRetainingCapacity(); // Avoid `local variable is never mutated`
-    getHashForString(allocator, &str_info, str);
+    if (getHashForString(allocator, &str_info, str)) {
+        // empty..
+    } else |_| {
+        return null;
+    }
 
     var heatmap = LInt.init(allocator);
-    heatmap.clearRetainingCapacity(); // Avoid `local variable is never mutated`
     if (getHeatmapStr(allocator, &heatmap, str, null)) {
-        // Empty..
-    } else |_|{
+        // empty..
+    } else |_| {
         return null;
     }
 
@@ -390,7 +390,11 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
     const full_match_boost: bool = (1 < query_len) and (query_len < 5);
     var match_cache = IntLResult.init(allocator);
     var optimal_match = LResult.init(allocator);
-    findBestMatch(allocator, &optimal_match, &str_info, heatmap, null, query, query_len, 0, &match_cache);
+    if (findBestMatch(allocator, &optimal_match, &str_info, &heatmap, null, query, query_len, 0, &match_cache)) {
+        // empty..
+    } else |_| {
+        return null;
+    }
 
     if (optimal_match.items.len == 0) {
         return null;
