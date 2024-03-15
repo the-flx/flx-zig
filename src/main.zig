@@ -131,9 +131,12 @@ fn testCreate(allocator: std.mem.Allocator) !void {
 
 fn testScore() !void {
     const result: ?flx.Result = flx.score("switch-to-buffer", "stb");
+    std.debug.print("::: {any}\n", .{result});
     if (result != null) {
         std.debug.print("{d}\n", .{result.?.score});
     }
+
+    defer result.?.deinit();
 }
 
 pub fn main() !void {
