@@ -374,7 +374,14 @@ fn clearLResult(imatch: ?*LResult) !void {
 /// Free internal variables.
 fn freeInternal(imatch: ?*LResult, str_info: ?*IntLInt, heatmap: ?*LInt, match_cache: ?*IntLResult) !void {
     if (imatch != null) {
-        try clearLResult(imatch);
+        var ignore_first = true;
+        for (imatch.?.items) |result| {
+            if (ignore_first) {
+                ignore_first = false;
+                continue;
+            }
+            result.deinit();
+        }
         imatch.?.deinit();
     }
 
@@ -400,9 +407,7 @@ fn freeInternal(imatch: ?*LResult, str_info: ?*IntLInt, heatmap: ?*LInt, match_c
 }
 
 /// Return best score matching QUERY against STR.
-///
-/// List function `score` but accept custom allocator.
-pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Result {
+pub fn score(allocator: std.mem.Allocator, str: String, query: String) ?Result {
     if (util.nullOrEmpty(str) or util.nullOrEmpty(query)) {
         return null;
     }
@@ -434,14 +439,10 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
         return null;
     }
 
-    std.debug.print("1\n", .{});
-
     if (optimal_match.items.len == 0) {
         try freeInternal(&optimal_match, &str_info, &heatmap, &match_cache);
         return null;
     }
-
-    std.debug.print("2\n", .{});
 
     var result: ?Result = optimal_match.items[0];
     const caar: i32 = @intCast(result.?.indices.items.len);
@@ -453,20 +454,6 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
     try freeInternal(&optimal_match, &str_info, &heatmap, &match_cache);
 
     return result;
-}
-
-/// Return best score matching QUERY against STR.
-pub fn score(str: String, query: String) ?Result {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer {
-        const deinit_status = gpa.deinit();
-        //fail test; can't try in defer as defer is executed after we return
-        if (deinit_status == .leak) {
-            testing.expect(false) catch @panic("TEST FAIL");
-        }
-    }
-    return scoreAlloc(allocator, str, query);
 }
 
 //--- Testing

@@ -1,4 +1,6 @@
 const std = @import("std");
+const testing = std.testing;
+
 const flx = @import("root.zig");
 const util = @import("util.zig");
 
@@ -129,19 +131,29 @@ fn testCreate(allocator: std.mem.Allocator) !void {
     std.debug.print("{*}\n", .{&lst2});
 }
 
-fn testScore() !void {
-    const result: ?flx.Result = flx.score("switch-to-buffer", "stb");
-    std.debug.print("::: {any}\n", .{result});
+fn testScore(allocator: std.mem.Allocator) !void {
+    const result: ?flx.Result = flx.score(allocator, "switch-to-buffer", "stb");
     if (result != null) {
         std.debug.print("{d}\n", .{result.?.score});
+        for (result.?.indices.items) |indice| {
+            std.debug.print("{d} ", .{indice});
+        }
+        std.debug.print("\n", .{});
     }
 
     defer result.?.deinit();
 }
 
 pub fn main() !void {
-    //var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    //const allocator = gpa.allocator();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer {
+        const deinit_status = gpa.deinit();
+        //fail test; can't try in defer as defer is executed after we return
+        if (deinit_status == .leak) {
+            testing.expect(false) catch @panic("TEST FAIL");
+        }
+    }
 
     //try testArray();
     //try testHashmap();
@@ -151,5 +163,5 @@ pub fn main() !void {
     //try testClone(allocator);
     //try testNested(allocator);
     //try testCreate(allocator);
-    try testScore();
+    try testScore(allocator);
 }
