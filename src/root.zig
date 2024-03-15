@@ -22,6 +22,10 @@ pub const Result = struct {
             .tail = tail,
         };
     }
+
+    pub fn deinit(self: Result) void {
+        self.indices.deinit();
+    }
 };
 
 const word_separators = [_]?u8{
@@ -274,10 +278,11 @@ fn biggerSublist(result: *LInt, sorted_list: ?LInt, val: ?i32) !void {
 fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntLInt, heatmap: *LInt, greater_than: ?i32, query: String, query_len: i32, q_index: i32, match_cache: *IntLResult) !void {
     const greater_num: i32 = greater_than orelse 0;
     const hash_key: i32 = q_index + (greater_num * query_len);
-    const hash_value: ?LResult = match_cache.get(hash_key);
+    const hash_value: ?*LResult = match_cache.getPtr(hash_key);
 
-    if (hash_value == null) {
-        imatch.clearRetainingCapacity();
+    if (hash_value != null) {
+        try freeInternal(null, null, null, match_cache);
+
         for (hash_value.?.items) |val| {
             try imatch.append(val);
         }
@@ -295,16 +300,18 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
             for (indexes.items) |index| {
                 var indices = LInt.init(allocator);
                 try indices.append(index);
-
                 try imatch.append(Result.init(indices, heatmap.items[@intCast(index)], 0));
             }
         } else {
             for (indexes.items) |index| {
                 var elem_group = LResult.init(allocator);
 
-                var dic = IntLInt.init(allocator);
-                var lst = LInt.init(allocator);
-                try findBestMatch(allocator, &elem_group, &dic, &lst, index, query, query_len, q_index + 1, match_cache);
+                var new_dic = str_info.clone() catch null;
+                var new_lst = heatmap.clone() catch null;
+                try findBestMatch(allocator, &elem_group, &new_dic.?, &new_lst.?, index, query, query_len, q_index + 1, match_cache);
+
+                defer new_dic.?.deinit();
+                defer new_lst.?.deinit();
 
                 for (elem_group.items) |elem| {
                     const caar: i32 = elem.indices.items[0];
@@ -324,7 +331,8 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
                     if (temp_score > best_score) {
                         best_score = temp_score;
 
-                        imatch.clearRetainingCapacity();
+                        try freeInternal(imatch, null, null, null);
+
                         var indices = elem.indices.clone() catch null;
                         try indices.?.insert(0, index);
 
@@ -333,30 +341,50 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
                             tail = cddr + 1;
                         }
 
-                        imatch.append(Result.init(indices, temp_score, tail));
+                        const result = Result.init(indices.?, temp_score, tail);
+                        try imatch.append(result);
                     }
                 }
+
+                try freeInternal(&elem_group, null, null, null);
             }
         }
 
+        indexes.deinit();
+
         // Calls are cached to avoid exponential time complexity
-        var imatch_cloned: ?LResult = imatch.clone() catch null;
-        match_cache.put(hash_key, &imatch_cloned);
+        const imatch_cloned: ?LResult = imatch.clone() catch null;
+        try match_cache.put(hash_key, imatch_cloned.?);
     }
 }
 
 /// Free internal variables.
-fn freeInternal(str_info: ?*IntLInt, heatmap: ?*LInt) !void {
+fn freeInternal(imatch: ?*LResult, str_info: ?*IntLInt, heatmap: ?*LInt, match_cache: ?*IntLResult) !void {
     if (str_info != null) {
         var it = str_info.?.keyIterator();
         while (it.next()) |k| {
-            str_info.?.get(k.*).?.deinit();
+            str_info.?.getPtr(k.*).?.deinit();
         }
         str_info.?.deinit();
     }
 
     if (heatmap != null) {
         heatmap.?.deinit();
+    }
+
+    if (imatch != null) {
+        for (imatch.?.items) |result| {
+            result.deinit();
+        }
+        imatch.?.deinit();
+    }
+
+    if (match_cache != null) {
+        var it = match_cache.?.keyIterator();
+        while (it.next()) |k| {
+            match_cache.?.getPtr(k.*).?.deinit();
+        }
+        match_cache.?.deinit();
     }
 }
 
@@ -372,17 +400,15 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
     if (getHashForString(allocator, &str_info, str)) {
         // empty..
     } else |_| {
-        try freeInternal(&str_info, null);
+        try freeInternal(null, &str_info, null, null);
         return null;
     }
 
     var heatmap = LInt.init(allocator);
     if (getHeatmapStr(allocator, &heatmap, str, null)) {
         // empty..
-        try freeInternal(&str_info, &heatmap);
-        return null;
     } else |_| {
-        try freeInternal(&str_info, &heatmap);
+        try freeInternal(null, &str_info, &heatmap, null);
         return null;
     }
 
@@ -393,12 +419,18 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
     if (findBestMatch(allocator, &optimal_match, &str_info, &heatmap, null, query, query_len, 0, &match_cache)) {
         // empty..
     } else |_| {
+        try freeInternal(&optimal_match, &str_info, &heatmap, &match_cache);
         return null;
     }
 
+    std.debug.print("1", .{});
+
     if (optimal_match.items.len == 0) {
+        try freeInternal(&optimal_match, &str_info, &heatmap, &match_cache);
         return null;
     }
+
+    std.debug.print("2", .{});
 
     var result: ?Result = optimal_match.items[0];
     const caar: i32 = @intCast(result.?.indices.items.len);
@@ -406,6 +438,10 @@ pub fn scoreAlloc(allocator: std.mem.Allocator, str: String, query: String) ?Res
     if (full_match_boost and caar == str.len) {
         result.?.score += 10000;
     }
+
+    std.debug.print("?? {any}\n", .{result.?.score});
+
+    //try freeInternal(&optimal_match, &str_info, &heatmap, &match_cache);
 
     return result;
 }
