@@ -131,6 +131,13 @@ fn testCreate(allocator: std.mem.Allocator) !void {
     std.debug.print("{*}\n", .{&lst2});
 }
 
+fn repMem(allocator: std.mem.Allocator) !void {
+    var indices = flx.LInt.init(allocator);
+    try indices.append(0);
+    const result = flx.Result.init(indices, 0, 0);
+    result.deinit();
+}
+
 fn testScore(allocator: std.mem.Allocator) !void {
     const result: ?flx.Result = flx.score(allocator, "switch-to-buffer", "stb");
     if (result != null) {
@@ -163,5 +170,6 @@ pub fn main() !void {
     //try testClone(allocator);
     //try testNested(allocator);
     //try testCreate(allocator);
+    //try repMem(allocator);
     try testScore(allocator);
 }

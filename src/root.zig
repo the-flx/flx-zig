@@ -331,19 +331,20 @@ fn findBestMatch(allocator: std.mem.Allocator, imatch: *LResult, str_info: *IntL
 
                         try clearLResult(imatch);
 
-                        var indices = elem.indices.clone() catch null;
-                        try indices.?.insert(0, index);
+                        var new_indices = elem.indices.clone() catch null;
+                        try new_indices.?.insert(0, index);
 
                         var tail: i32 = 0;
                         if ((caar - 1) == index) {
                             tail = cddr + 1;
                         }
 
-                        const result = Result.init(indices.?, temp_score, tail);
+                        const result = Result.init(new_indices.?, temp_score, tail);
                         try imatch.append(result);
                     }
                 }
 
+                try clearLResult(&elem_group);
                 elem_group.deinit();
                 new_dic.?.deinit();
                 new_lst.?.deinit();

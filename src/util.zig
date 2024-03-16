@@ -5,7 +5,6 @@ const flx = @import("root.zig");
 pub fn dictInsert(allocator: std.mem.Allocator, dict: *flx.IntLInt, key: i32, val: i32) !void {
     if (!dict.contains(key)) {
         const lst = flx.LInt.init(allocator);
-        //std.debug.print("created!! {} @ {*}\n", .{key, &lst});
         try dict.put(key, lst);
     }
 
