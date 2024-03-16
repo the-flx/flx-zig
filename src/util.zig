@@ -1,5 +1,5 @@
 const std = @import("std");
-const flx = @import("root.zig");
+const flx = @import("flx.zig");
 
 /// Insert data.
 pub fn dictInsert(allocator: std.mem.Allocator, dict: *flx.IntLInt, key: i32, val: i32) !void {
