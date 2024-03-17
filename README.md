@@ -4,6 +4,15 @@
 # flx-zig
 > Rewrite emacs-flx in Zig
 
+## 🔧 Usage
+
+```zig
+const result: ?flx.Result = flx.score(allocator, "switch-to-buffer", "stb");
+std.debug.print("{d}\n", .{result.?.score});
+
+defer result.?.deinit();  // clean up
+```
+
 ## 🔍 See Also
 
 - [flx][] - Original algorithm in Emacs Lisp
