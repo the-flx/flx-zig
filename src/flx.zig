@@ -480,25 +480,7 @@ test "incVec" {
     try it.append(4);
     try it.append(5);
 
-    incVec(it, 2, 2, null);
+    incVec(&it, 2, 2, null);
 
     try testing.expect(it.items[2] == 5);
-}
-
-test "getHashForString" {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-
-    var result: IntLInt = std.AutoHashMap(i32, LInt).init(allocator);
-    defer result.deinit();
-
-    var arr = LInt.init(allocator);
-    defer arr.deinit();
-
-    try result.put(0, arr);
-
-    //getHashForString(result, "");
-
-    try testing.expect(true);
 }

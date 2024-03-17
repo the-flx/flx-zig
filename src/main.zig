@@ -4,6 +4,7 @@ const testing = std.testing;
 const flx = @import("root.zig");
 const util = @import("util.zig");
 
+/// XXX: Just a test
 fn testArray() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -27,6 +28,7 @@ fn testArray() !void {
     std.debug.print("len: {d}\n", .{it.items.len});
 }
 
+/// XXX: Just a test
 fn testHashmap() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -44,6 +46,7 @@ fn testHashmap() !void {
     std.debug.print("{?}", .{my_hash_map.get(0)});
 }
 
+/// XXX: Just a test
 fn testArrArr() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -55,6 +58,7 @@ fn testArrArr() !void {
     std.debug.print("{?}", .{inner.items[0]});
 }
 
+/// XXX: Just a test
 fn testForTimes() !void {
     const len = 10;
     for (0..len) |i| {
@@ -62,12 +66,14 @@ fn testForTimes() !void {
     }
 }
 
+/// XXX: Just a test
 fn testForStr() !void {
     for ("abcd") |i| {
         std.debug.print("{c}", .{i});
     }
 }
 
+/// XXX: Just a test
 fn testClone(allocator: std.mem.Allocator) !void {
     var inner = flx.LInt.init(allocator);
     try inner.append(-1);
@@ -89,6 +95,7 @@ fn testClone(allocator: std.mem.Allocator) !void {
     }
 }
 
+/// XXX: Just a test
 fn testNested(allocator: std.mem.Allocator) !void {
     var str_info = flx.IntLInt.init(allocator);
     try util.dictInsert(allocator, &str_info, 0, 10);
@@ -117,6 +124,7 @@ fn testNested(allocator: std.mem.Allocator) !void {
     // }
 }
 
+/// XXX: Just a test
 fn testCreate(allocator: std.mem.Allocator) !void {
     var lst1 = flx.LInt.init(allocator);
     var lst2 = flx.LInt.init(allocator);
@@ -131,6 +139,7 @@ fn testCreate(allocator: std.mem.Allocator) !void {
     std.debug.print("{*}\n", .{&lst2});
 }
 
+/// XXX: Just a test
 fn repMem(allocator: std.mem.Allocator) !void {
     var indices = flx.LInt.init(allocator);
     try indices.append(0);
@@ -138,6 +147,7 @@ fn repMem(allocator: std.mem.Allocator) !void {
     result.deinit();
 }
 
+/// XXX: Just a test
 fn testScore(allocator: std.mem.Allocator) !void {
     const result: ?flx.Result = flx.score(allocator, "switch-to-buffer", "stb");
     if (result != null) {
@@ -151,6 +161,7 @@ fn testScore(allocator: std.mem.Allocator) !void {
     defer result.?.deinit();
 }
 
+/// Program Entry
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -172,4 +183,57 @@ pub fn main() !void {
     //try testCreate(allocator);
     //try repMem(allocator);
     try testScore(allocator);
+}
+
+test "switch-to-buffer stb" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer {
+        const deinit_status = gpa.deinit();
+        //fail test; can't try in defer as defer is executed after we return
+        if (deinit_status == .leak) {
+            testing.expect(false) catch @panic("TEST FAIL");
+        }
+    }
+
+    const result: ?flx.Result = flx.score(allocator, "switch-to-buffer", "stb");
+    defer result.?.deinit();
+
+    try testing.expect(result.?.score == 237);
+}
+
+test "switch-to-buffer z" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer {
+        const deinit_status = gpa.deinit();
+        //fail test; can't try in defer as defer is executed after we return
+        if (deinit_status == .leak) {
+            testing.expect(false) catch @panic("TEST FAIL");
+        }
+    }
+
+    const result: ?flx.Result = flx.score(allocator, "switch-to-buffer", "z");
+    if (result != null) {
+        defer result.?.deinit();
+    }
+
+    try testing.expect(result == null);
+}
+
+test "hello-world hlw" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer {
+        const deinit_status = gpa.deinit();
+        //fail test; can't try in defer as defer is executed after we return
+        if (deinit_status == .leak) {
+            testing.expect(false) catch @panic("TEST FAIL");
+        }
+    }
+
+    const result: ?flx.Result = flx.score(allocator, "hello-world", "hlw");
+    defer result.?.deinit();
+
+    try testing.expect(result.?.score == 159);
 }
