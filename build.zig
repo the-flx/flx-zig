@@ -4,6 +4,7 @@ fn declareModule(b: *std.Build) void {
     _ = b.addModule("flx", .{
         .root_source_file = .{ .path = "src/root.zig" },
     });
+}
 
 fn rest(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
