@@ -1,25 +1,9 @@
 const std = @import("std");
 
-const CFlags = &.{};
-
 fn declareModule(b: *std.Build) void {
-    const module = b.addModule("flx", .{
-        .root_source_file = .{ .path = "src/flx.zig" },
+    _ = b.addModule("flx", .{
+        .root_source_file = .{ .path = "src/root.zig" },
     });
-    module.addIncludePath(.{ .path = "c-lib/flx-c/include/" });
-    module.addCSourceFile(.{
-        .file = .{
-            .path = "src/stb_ds.c", // single-file header
-        },
-        .flags = CFlags,
-    });
-    module.addCSourceFile(.{
-        .file = .{
-            .path = "c-lib/flx-c/src/flx.c",
-        },
-        .flags = CFlags,
-    });
-}
 
 fn rest(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
