@@ -4,6 +4,9 @@
 # flx-zig
 > Rewrite emacs-flx in Zig
 
+[![Docs](https://github.com/jcs090218/flx-zig/actions/workflows/docs.yml/badge.svg)](https://github.com/jcs090218/flx-zig/actions/workflows/docs.yml)
+[![CI](https://github.com/jcs090218/flx-zig/actions/workflows/test.yml/badge.svg)](https://github.com/jcs090218/flx-zig/actions/workflows/test.yml)
+
 ## 🔧 Usage
 
 ```zig
