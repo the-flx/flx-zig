@@ -4,7 +4,7 @@
 
     .dependencies = .{
         .flx = .{
-            .url = "https://github.com/jcs090218/flx-zig/archive/82eb49e8e26ceb53c58e2f4fe5bc2ab3f6ec91d4.tar.gz",
+            .url = "https://github.com/the-flx/flx-zig/archive/82eb49e8e26ceb53c58e2f4fe5bc2ab3f6ec91d4.tar.gz",
             .hash = "12202ffde84f17914ba10f6bc1799738b5db997e6ff8f9092384c7f8f9f63bfa4c42",
         },
     },
