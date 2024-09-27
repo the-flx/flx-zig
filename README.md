@@ -43,7 +43,7 @@ exe.addModule("flx", flx_mod);
 const flx = @import("flx");
 ```
 
-*📝 P.S. See [examples](https://github.com/jcs090218/flx-zig/tree/master/examples) for full example!*
+*📝 P.S. See [examples](https://github.com/the-flx/flx-zig/tree/master/examples) for full example!*
 
 ## ⚜️ License
 
