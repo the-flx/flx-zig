@@ -49,7 +49,7 @@ const flx = @import("flx");
 
 `flx-zig` is distributed under the terms of the MIT license.
 
-See [LICENSE](./LICENSE) for details.
+See [`LICENSE`](./LICENSE) for details.
 
 
 <!-- Links -->
